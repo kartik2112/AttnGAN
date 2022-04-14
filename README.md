@@ -7,17 +7,11 @@ with Attentional Generative Adversarial Networks](http://openaccess.thecvf.com/c
 
 
 ### Dependencies
-python 2.7
+python 3.6
 
 Pytorch
 
-In addition, please add the project folder to PYTHONPATH and `pip install` the following packages:
-- `python-dateutil`
-- `easydict`
-- `pandas`
-- `torchfile`
-- `nltk`
-- `scikit-image`
+In addition, please add the project folder to PYTHONPATH and `pip install -r requirements.txt`
 
 
 
