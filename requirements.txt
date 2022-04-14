@@ -5,3 +5,5 @@ torchfile
 nltk
 scikit-image
 fiftyone
+torch
+torchvision

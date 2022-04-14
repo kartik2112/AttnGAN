@@ -32,7 +32,7 @@ def drawCaption(convas, captions, ixtoword, vis_size, off1=2, off2=2):
     img_txt = Image.fromarray(convas)
     # get a font
     # fnt = None  # ImageFont.truetype('Pillow/Tests/fonts/FreeMono.ttf', 50)
-    fnt = ImageFont.truetype('Pillow/Tests/fonts/FreeMono.ttf', 50)
+    fnt = ImageFont.truetype('./miscc/FreeMono.ttf', 50)
     # get a drawing context
     d = ImageDraw.Draw(img_txt)
     sentence_list = []
@@ -128,7 +128,7 @@ def build_super_images(real_imgs, captions, ixtoword,
             one_map = attn[j]
             if (vis_size // att_sze) > 1:
                 one_map = \
-                    skimage.transform.pyramid_expand(one_map, sigma=20,
+                    skimage.transform.pyramid_expand(one_map, sigma=20, multichannel=True,
                                                      upscale=vis_size // att_sze)
             row_beforeNorm.append(one_map)
             minV = one_map.min()

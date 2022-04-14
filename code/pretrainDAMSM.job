@@ -1,0 +1,11 @@
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=32GB
+#SBATCH --time=30:00:00
+#SBATCH --partition=gpu
+#SBATCH --gres=gpu:p100:1
+#SBATCH --account=xiangren_818
+
+python pretrain_DAMSM.py --cfg cfg/DAMSM/coco.yml --gpu 0
