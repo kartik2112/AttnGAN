@@ -288,23 +288,27 @@ class TextDataset(data.Dataset):
 
     def __getitem__(self, index):
         #
-        key = self.filenames[index]
-        cls_id = self.class_id[index]
-        #
-        if self.bbox is not None:
-            bbox = self.bbox[key]
-            data_dir = '%s/CUB_200_2011' % self.data_dir
-        else:
-            bbox = None
-            data_dir = self.data_dir
-        #
-        img_name = '%s/images/%s.jpg' % (data_dir, key)
-        imgs = get_imgs(img_name, self.imsize,
-                        bbox, self.transform, normalize=self.norm)
-        # random select a sentence
-        sent_ix = random.randint(0, self.embeddings_num)
-        new_sent_ix = index * self.embeddings_num + sent_ix
-        caps, cap_len = self.get_caption(new_sent_ix)
+        try:
+            key = self.filenames[index]
+            cls_id = self.class_id[index]
+            #
+            if self.bbox is not None:
+                bbox = self.bbox[key]
+                data_dir = '%s/CUB_200_2011' % self.data_dir
+            else:
+                bbox = None
+                data_dir = self.data_dir
+            #
+            img_name = '%s/images/%s.jpg' % (data_dir, key)
+            imgs = get_imgs(img_name, self.imsize,
+                            bbox, self.transform, normalize=self.norm)
+            # random select a sentence
+            sent_ix = random.randint(0, self.embeddings_num)
+            new_sent_ix = index * self.embeddings_num + sent_ix
+            caps, cap_len = self.get_caption(new_sent_ix)
+        except Exception as e:
+            print(index, key, cls_id)
+            raise e
         return imgs, caps, cap_len, cls_id, key
 
 

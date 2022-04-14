@@ -47,7 +47,7 @@ def parse_args():
 
 
 def train(dataloader, cnn_model, rnn_model, batch_size,
-          labels, optimizer, epoch, ixtoword, image_dir):
+          labels, optimizer, epoch, ixtoword, image_dir, device):
     cnn_model.train()
     rnn_model.train()
     s_total_loss0 = 0
@@ -64,6 +64,11 @@ def train(dataloader, cnn_model, rnn_model, batch_size,
         imgs, captions, cap_lens, \
             class_ids, keys = prepare_data(data)
 
+        # imgs.to(device)
+        # captions.to(device)
+        # cap_lens.to(device)
+        # class_ids.to(device)
+        # keys.to(device)
 
         # words_features: batch_size x nef x 17 x 17
         # sent_code: batch_size x nef
@@ -79,15 +84,15 @@ def train(dataloader, cnn_model, rnn_model, batch_size,
 
         w_loss0, w_loss1, attn_maps = words_loss(words_features, words_emb, labels,
                                                  cap_lens, class_ids, batch_size)
-        w_total_loss0 += w_loss0.data
-        w_total_loss1 += w_loss1.data
-        loss = w_loss0 + w_loss1
+        w_total_loss0 += w_loss0.detach().item()
+        w_total_loss1 += w_loss1.detach().item()
+        loss = (w_loss0 + w_loss1)
 
         s_loss0, s_loss1 = \
             sent_loss(sent_code, sent_emb, labels, class_ids, batch_size)
-        loss += s_loss0 + s_loss1
-        s_total_loss0 += s_loss0.item()
-        s_total_loss1 += s_loss1.item()
+        loss += (s_loss0 + s_loss1).detach().item()
+        s_total_loss0 += s_loss0.detach().item()
+        s_total_loss1 += s_loss1.detach().item()
         #
         loss.backward()
         #
@@ -130,7 +135,7 @@ def train(dataloader, cnn_model, rnn_model, batch_size,
     return count
 
 
-def evaluate(dataloader, cnn_model, rnn_model, batch_size):
+def evaluate(dataloader, cnn_model, rnn_model, batch_size, device):
     cnn_model.eval()
     rnn_model.eval()
     s_total_loss = 0
@@ -138,6 +143,9 @@ def evaluate(dataloader, cnn_model, rnn_model, batch_size):
     for step, data in enumerate(dataloader, 0):
         real_imgs, captions, cap_lens, \
                 class_ids, keys = prepare_data(data)
+        
+        # real_imgs.to(device); captions.to(device); cap_lens.to(device)
+        # class_ids.to(device); keys.to(device); 
 
         words_features, sent_code = cnn_model(real_imgs[-1])
         # nef = words_features.size(1)
@@ -148,22 +156,22 @@ def evaluate(dataloader, cnn_model, rnn_model, batch_size):
 
         w_loss0, w_loss1, attn = words_loss(words_features, words_emb, labels,
                                             cap_lens, class_ids, batch_size)
-        w_total_loss += (w_loss0 + w_loss1).data
+        w_total_loss += (w_loss0 + w_loss1).detach().item()
 
         s_loss0, s_loss1 = \
             sent_loss(sent_code, sent_emb, labels, class_ids, batch_size)
-        s_total_loss += (s_loss0 + s_loss1).data
+        s_total_loss += (s_loss0 + s_loss1).detach().item()
 
         if step == 50:
             break
 
-    s_cur_loss = s_total_loss[0] / step
-    w_cur_loss = w_total_loss[0] / step
+    s_cur_loss = s_total_loss / step
+    w_cur_loss = w_total_loss / step
 
     return s_cur_loss, w_cur_loss
 
 
-def build_models():
+def build_models(device):
     # build model ############################################################
     text_encoder = RNN_ENCODER(dataset.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
     image_encoder = CNN_ENCODER(cfg.TEXT.EMBEDDING_DIM)
@@ -184,10 +192,10 @@ def build_models():
         start_epoch = cfg.TRAIN.NET_E[istart:iend]
         start_epoch = int(start_epoch) + 1
         print('start_epoch', start_epoch)
-    if cfg.CUDA:
-        text_encoder = text_encoder.cuda()
-        image_encoder = image_encoder.cuda()
-        labels = labels.cuda()
+    # if cfg.CUDA:
+    text_encoder = text_encoder.to(device)
+    image_encoder = image_encoder.to(device)
+    labels = labels.to(device)
 
     return text_encoder, image_encoder, labels, start_epoch
 
@@ -228,8 +236,9 @@ if __name__ == "__main__":
     mkdir_p(model_dir)
     mkdir_p(image_dir)
 
-    torch.cuda.set_device(cfg.GPU_ID)
-    cudnn.benchmark = True
+    # torch.cuda.set_device(cfg.GPU_ID)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # cudnn.benchmark = True
 
     # Get data loader ##################################################
     imsize = cfg.TREE.BASE_SIZE * (2 ** (cfg.TREE.BRANCH_NUM-1))
@@ -257,7 +266,7 @@ if __name__ == "__main__":
         shuffle=True, num_workers=int(cfg.WORKERS))
 
     # Train ##############################################################
-    text_encoder, image_encoder, labels, start_epoch = build_models()
+    text_encoder, image_encoder, labels, start_epoch = build_models(device)
     para = list(text_encoder.parameters())
     for v in image_encoder.parameters():
         if v.requires_grad:
@@ -271,11 +280,11 @@ if __name__ == "__main__":
             epoch_start_time = time.time()
             count = train(dataloader, image_encoder, text_encoder,
                           batch_size, labels, optimizer, epoch,
-                          dataset.ixtoword, image_dir)
+                          dataset.ixtoword, image_dir, device)
             print('-' * 89)
             if len(dataloader_val) > 0:
                 s_loss, w_loss = evaluate(dataloader_val, image_encoder,
-                                          text_encoder, batch_size)
+                                          text_encoder, batch_size, device)
                 print('| end epoch {:3d} | valid loss '
                       '{:5.2f} {:5.2f} | lr {:.5f}|'
                       .format(epoch, s_loss, w_loss, lr))
