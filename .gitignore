@@ -6,3 +6,4 @@ code/miscc/*.pyc
 .idea/
 slurm-*
 launch.json
+./gen_datasets/

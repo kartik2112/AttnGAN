@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 from miscc.config import cfg, cfg_from_file
-from datasets import TextDataset
+from datasets import TextDataset, TextDataset_Generator
 from trainer import condGANTrainer as trainer
 
 import os
@@ -39,14 +39,14 @@ def gen_example(wordtoix, algo):
     filepath = '%s/example_filenames.txt' % (cfg.DATA_DIR)
     data_dic = {}
     with open(filepath, "r") as f:
-        filenames = f.read().decode('utf8').split('\n')
+        filenames = f.read().split('\n')
         for name in filenames:
             if len(name) == 0:
                 continue
             filepath = '%s/%s.txt' % (cfg.DATA_DIR, name)
             with open(filepath, "r") as f:
                 print('Load from:', name)
-                sentences = f.read().decode('utf8').split('\n')
+                sentences = f.read().split('\n')
                 # a list of indices for a sentence
                 captions = []
                 cap_lens = []
@@ -139,10 +139,24 @@ if __name__ == "__main__":
     if cfg.TRAIN.FLAG:
         algo.train()
     else:
-        '''generate images from pre-extracted embeddings'''
-        if cfg.B_VALIDATION:
-            algo.sampling(split_dir)  # generate images for the whole valid dataset
+        if cfg.GEN_IMAGES:
+            dataset = TextDataset_Generator(cfg.DATA_DIR, 'train',
+                          base_size=cfg.TREE.BASE_SIZE,
+                          transform=image_transform)
+            assert dataset
+            dataloader = torch.utils.data.DataLoader(
+                dataset, batch_size=cfg.TRAIN.BATCH_SIZE,
+                drop_last=True, shuffle=False, num_workers=int(cfg.WORKERS))
+
+            # Define models and go to train/evaluate
+            algo = trainer(output_dir, dataloader, dataset.n_words, dataset.ixtoword, dataset.__len__())
+
+            algo.gen_dataset()
         else:
-            gen_example(dataset.wordtoix, algo)  # generate images for customized captions
+            '''generate images from pre-extracted embeddings'''
+            if cfg.B_VALIDATION:
+                algo.sampling(split_dir)  # generate images for the whole valid dataset
+            else:
+                gen_example(dataset.wordtoix, algo)  # generate images for customized captions
     end_t = time.time()
     print('Total time for training:', end_t - start_t)

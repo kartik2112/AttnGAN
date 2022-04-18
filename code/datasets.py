@@ -91,7 +91,7 @@ def get_imgs(img_path, imsize, bbox=None,
 class TextDataset(data.Dataset):
     def __init__(self, data_dir, split='train',
                  base_size=64,
-                 transform=None, target_transform=None):
+                 transform=None, target_transform=None, incl_caption_texts=False):
         self.transform = transform
         self.norm = transforms.Compose([
             transforms.ToTensor(),
@@ -112,8 +112,12 @@ class TextDataset(data.Dataset):
             self.bbox = None
         split_dir = os.path.join(data_dir, split)
 
-        self.filenames, self.captions, self.ixtoword, \
-            self.wordtoix, self.n_words = self.load_text_data(data_dir, split)
+        if incl_caption_texts:
+            self.filenames, self.captions, self.ixtoword, \
+                self.wordtoix, self.n_words, self.caption_texts = self.load_text_data(data_dir, split, incl_caption_texts)
+        else:
+            self.filenames, self.captions, self.ixtoword, \
+                self.wordtoix, self.n_words = self.load_text_data(data_dir, split, incl_caption_texts)
 
         self.class_id = self.load_class_id(split_dir, len(self.filenames))
         self.number_example = len(self.filenames)
@@ -147,7 +151,7 @@ class TextDataset(data.Dataset):
         for i in range(len(filenames)):
             cap_path = '%s/text/%s.txt' % (data_dir, filenames[i])
             with open(cap_path, "r") as f:
-                captions = f.read().decode('utf8').split('\n')
+                captions = f.read().split('\n')
                 cnt = 0
                 for cap in captions:
                     if len(cap) == 0:
@@ -216,7 +220,7 @@ class TextDataset(data.Dataset):
         return [train_captions_new, test_captions_new,
                 ixtoword, wordtoix, len(ixtoword)]
 
-    def load_text_data(self, data_dir, split):
+    def load_text_data(self, data_dir, split, incl_caption_texts=False):
         filepath = os.path.join(data_dir, 'captions.pickle')
         train_names = self.load_filenames(data_dir, 'train')
         test_names = self.load_filenames(data_dir, 'test')
@@ -246,7 +250,25 @@ class TextDataset(data.Dataset):
         else:  # split=='test'
             captions = test_captions
             filenames = test_names
-        return filenames, captions, ixtoword, wordtoix, n_words
+        if incl_caption_texts and split == 'train':
+            caption_texts = []
+            cap_fname = "%s/train_captions.txt" % (data_dir,)
+            print(f"Load captions from {cap_fname}")
+            with open(cap_fname, "r") as f:
+                for line in f:
+                    if not line:
+                        continue
+                    caption_texts.append(line)
+            assert len(caption_texts) == len(filenames) * 5
+            # if split == 'train':
+            #     train_caption_texts = self.load_captions(data_dir, train_names)
+            #     caption_texts = train_caption_texts
+            # else:  # split=='test'
+            #     test_caption_texts = self.load_captions(data_dir, test_names)
+            #     caption_texts = test_caption_texts
+            return filenames, captions, ixtoword, wordtoix, n_words, caption_texts
+        else:
+            return filenames, captions, ixtoword, wordtoix, n_words
 
     def load_class_id(self, data_dir, total_num):
         if os.path.isfile(data_dir + '/class_info.pickle'):
@@ -314,3 +336,29 @@ class TextDataset(data.Dataset):
 
     def __len__(self):
         return len(self.filenames)
+
+class TextDataset_Generator(TextDataset):
+    def __init__(self, data_dir, split='train',
+                 base_size=64,
+                 transform=None, target_transform=None, incl_caption_texts=True):
+        super().__init__(data_dir, split, base_size, transform, target_transform, incl_caption_texts)
+    def __getitem__(self, index):
+        #
+        try:
+            key = self.filenames[index//self.embeddings_num]
+            cls_id = self.class_id[index//self.embeddings_num]
+            bbox = None
+            data_dir = self.data_dir
+            #
+            img_name = '%s/images/%s.jpg' % (data_dir, key)
+            imgs = get_imgs(img_name, self.imsize,
+                            bbox, self.transform, normalize=self.norm)
+            caps, cap_len = self.get_caption(index)
+        except Exception as e:
+            print(index, key, cls_id)
+            raise e
+        return imgs, caps, cap_len, cls_id, key, self.caption_texts[index], index
+    
+    def __len__(self):
+        return len(self.caption_texts)
+    

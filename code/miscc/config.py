@@ -19,6 +19,8 @@ __C.WORKERS = 6
 
 __C.RNN_TYPE = 'LSTM'   # 'GRU'
 __C.B_VALIDATION = False
+__C.GEN_IMAGES = False
+__C.FAKE_COUNT = 5
 
 __C.TREE = edict()
 __C.TREE.BRANCH_NUM = 3
