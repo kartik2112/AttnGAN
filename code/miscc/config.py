@@ -26,6 +26,10 @@ __C.TREE = edict()
 __C.TREE.BRANCH_NUM = 3
 __C.TREE.BASE_SIZE = 64
 
+# Distillation options
+__C.DISTIL = edict()
+__C.DISTIL.FLAG = False
+__C.DISTIL.START_DIST_LAMBDA = 0.5
 
 # Training options
 __C.TRAIN = edict()

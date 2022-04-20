@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
+import torch.nn.functional as F
 
 from PIL import Image
 
@@ -25,6 +26,7 @@ import numpy as np
 import sys
 import datetime
 import dateutil.tz
+from tqdm import tqdm
 
 # ################# Text to image task############################ #
 class condGANTrainer(object):
@@ -330,6 +332,129 @@ class condGANTrainer(object):
 
         self.save_model(netG, avg_param_G, netsD, self.max_epoch)
 
+    def distil(self):
+        text_encoder, image_encoder, netG, netsD, start_epoch = self.build_models()
+        avg_param_G = copy_G_params(netG)
+        optimizerG, optimizersD = self.define_optimizers(netG, netsD)
+        real_labels, fake_labels, match_labels = self.prepare_labels()
+
+        batch_size = self.batch_size
+        nz = cfg.GAN.Z_DIM
+        noise = Variable(torch.FloatTensor(batch_size, nz))
+        fixed_noise = Variable(torch.FloatTensor(batch_size, nz).normal_(0, 1))
+        if cfg.CUDA:
+            noise, fixed_noise = noise.to(self.device), fixed_noise.to(self.device)
+
+        gen_iterations = 0
+
+        distil_lambda = cfg.DISTIL.START_DIST_LAMBDA
+        netG = nn.DataParallel(netG, device_ids=[0,1])
+        image_encoder = nn.DataParallel(image_encoder, device_ids=[0,1])
+        # gen_iterations = start_epoch * self.num_batches
+        for epoch in tqdm(range(start_epoch, self.max_epoch)):
+            start_t = time.time()
+
+            data_iter = iter(self.data_loader)
+            step = 0
+            while step < self.num_batches:
+                # reset requires_grad to be trainable for all Ds
+                # self.set_requires_grad_value(netsD, True)
+
+                ######################################################
+                # (1) Prepare training data and Compute text embeddings
+                ######################################################
+                data = data_iter.next()
+                imgs, captions, cap_lens, class_ids, keys = prepare_data(data[:-2])
+                real_imgs, noise_data = data[-2], data[-1]
+
+                hidden = text_encoder.init_hidden(batch_size)
+                # words_embs: batch_size x nef x seq_len
+                # sent_emb: batch_size x nef
+                words_embs, sent_emb = text_encoder(captions, cap_lens, hidden)
+                words_embs, sent_emb = words_embs.detach(), sent_emb.detach()
+                mask = (captions == 0)
+                num_words = words_embs.size(2)
+                if mask.size(1) > num_words:
+                    mask = mask[:, :num_words]
+
+                #######################################################
+                # (2) Generate fake images
+                ######################################################
+                noise.data = noise_data
+                noise = noise.to(self.device)
+                fake_imgs, _, mu, logvar = netG(noise, sent_emb, words_embs, mask)
+
+                #######################################################
+                # (3) Update D network
+                ######################################################
+                errD_total = 0
+                D_logs = ''
+                for i in range(len(netsD)):
+                    netsD[i].zero_grad()
+                    errD = discriminator_loss(netsD[i], imgs[i], fake_imgs[i],
+                                              sent_emb, real_labels, fake_labels)
+                    # backward and update parameters
+                    errD.backward()
+                    optimizersD[i].step()
+                    errD_total += errD
+                    D_logs += 'errD%d: %.2f ' % (i, errD.detach().item())
+
+                #######################################################
+                # (4) Update G network: maximize log(D(G(z)))
+                ######################################################
+                # compute total loss for training G
+                step += 1
+                gen_iterations += 1
+
+                # do not need to compute gradient for Ds
+                # self.set_requires_grad_value(netsD, False)
+                netG.zero_grad()
+                errG_total, G_logs = \
+                    generator_loss(netsD, image_encoder, fake_imgs, real_labels,
+                                   words_embs, sent_emb, match_labels, cap_lens, class_ids)
+                kl_loss = KL_loss(mu, logvar)
+                errG_total += kl_loss
+                dist_loss = 0
+                for i in range(len(fake_imgs)):
+                    dist_loss += distil_lambda * F.l1_loss(fake_imgs[i], imgs[i])
+                errG_total += dist_loss
+                G_logs += 'kl_loss: %.2f ' % kl_loss.detach().item()
+                G_logs += 'dist_loss: %.2f ' % dist_loss.detach().item()
+                # backward and update parameters
+                errG_total.backward()
+                optimizerG.step()
+                for p, avg_p in zip(netG.parameters(), avg_param_G):
+                    avg_p.mul_(0.999).add_(0.001, p.data)
+
+                if gen_iterations % 100 == 0:
+                    print(D_logs + '\n' + G_logs)
+                # save images
+                if gen_iterations % 1000 == 0:
+                    backup_para = copy_G_params(netG)
+                    load_params(netG, avg_param_G)
+                    self.save_img_results(netG, fixed_noise, sent_emb,
+                                          words_embs, mask, image_encoder,
+                                          captions, cap_lens, epoch, name='average')
+                    load_params(netG, backup_para)
+                    #
+                    # self.save_img_results(netG, fixed_noise, sent_emb,
+                    #                       words_embs, mask, image_encoder,
+                    #                       captions, cap_lens,
+                    #                       epoch, name='current')
+            end_t = time.time()
+
+            print('''[%d/%d][%d]
+                  Loss_D: %.2f Loss_G: %.2f Time: %.2fs'''
+                  % (epoch, self.max_epoch, self.num_batches,
+                     errD_total.detach().item(), errG_total.detach().item(),
+                     end_t - start_t))
+            distil_lambda = max(0.00, distil_lambda-0.01)
+
+            if epoch % cfg.TRAIN.SNAPSHOT_INTERVAL == 0:  # and epoch != 0:
+                self.save_model(netG, avg_param_G, netsD, epoch)
+
+        self.save_model(netG, avg_param_G, netsD, self.max_epoch)
+
     def save_singleimages(self, images, filenames, save_dir,
                           split_dir, sentenceID=0):
         for i in range(images.size(0)):
@@ -448,8 +573,7 @@ class condGANTrainer(object):
             netG.eval()
             #
             text_encoder = RNN_ENCODER(self.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
-            state_dict = \
-                torch.load(cfg.TRAIN.NET_E, map_location=lambda storage, loc: storage)
+            state_dict = torch.load(cfg.TRAIN.NET_E, map_location=lambda storage, loc: storage)
             text_encoder.load_state_dict(state_dict)
             print('Load text encoder from:', cfg.TRAIN.NET_E)
             text_encoder = text_encoder.to(self.device)
@@ -465,6 +589,7 @@ class condGANTrainer(object):
                 torch.load(model_dir, map_location=lambda storage, loc: storage)
             # state_dict = torch.load(cfg.TRAIN.NET_G)
             netG.load_state_dict(state_dict)
+            netG = nn.DataParallel(netG, device_ids=[0,1])
             print('Load G from: ', model_dir)
 
             # the path to save generated images
@@ -482,7 +607,7 @@ class condGANTrainer(object):
             cnt = 0
 
             for _ in range(1):  # (cfg.TEXT.CAPTIONS_PER_IMAGE):
-                for step, data in enumerate(self.data_loader, 0):
+                for step, data in tqdm(enumerate(self.data_loader, 0)):
                     cnt += batch_size
                     if step % 100 == 0:
                         print('step: ', step)
@@ -529,7 +654,7 @@ class condGANTrainer(object):
                     np.save("%s/AttnGAN_COCO_noise.npy" % (save_dir, ), stored_noise)
                     with open("%s/AttnGAN_COCO_captions.txt" % (save_dir, ), 'a') as f_cap:
                         for cap in batch_captions:
-                            f_cap.write(cap)
+                            f_cap.write(cap.strip()+'\n')
                     with open("%s/AttnGAN_COCO_filenames.csv" % (save_dir, ), "a") as f_fname:
                         for fname in batch_filenames:
                             f_fname.write(",".join(fname)+"\n")
