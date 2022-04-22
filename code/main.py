@@ -19,7 +19,7 @@ import torchvision.transforms as transforms
 from PIL import Image
 import sys
 # sys.path.append("../../improved-gan")
-# from miscc.inception_score_computer import get_inception_score
+from miscc.inception_score_computer import get_inception_score
 # from inception_score_pytorch.inception_score import inception_score
 from tqdm import tqdm
 
@@ -192,6 +192,8 @@ if __name__ == "__main__":
                 for imgname in tqdm(os.listdir(dir1)):
                     img = Image.open(dir1 + imgname).convert('RGB')
                     images1.append(np.array(img))
+                print("For model at %s" % (cfg.TRAIN.NET_G,))
+                pprint.pprint(cfg)
                 print("Inception Scores:",get_inception_score(images1))
                 # print("Inception Scores:",inception_score('../models/coco_AttnGAN2/valid/single/', cuda=True, batch_size=1000, num_workers=int(cfg.WORKERS)))
             else:

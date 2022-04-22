@@ -140,18 +140,24 @@ def discriminator_loss(netD, real_imgs, fake_imgs, conditions,
     # fake_features = netD(fake_imgs.detach())
     all_real_features = netD(real_imgs)
     all_fake_features = netD(fake_imgs.detach())
-    disc_losses = 0
-    if cfg.DISTIL.DISC_LOSS:
-        for i in range(len(all_real_features) - 1):
-            disc_losses += nn.L1Loss()(all_fake_features[i], all_real_features[i])
     real_features = all_real_features[-1]
     fake_features = all_fake_features[-1]
 
+    # ======== Distillation losses start ========================
+    # Discriminator-based losses for 1st 4 intermediate blocks at each D stage
+    disc_losses = 0
+    if cfg.DISTIL.FLAG and cfg.DISTIL.DISC_LOSS:
+        for i in range(len(all_real_features) - 1):
+            disc_losses += nn.L1Loss()(all_fake_features[i], all_real_features[i])
+
+    # Conditional and unconditional losses from true COCO images if in distillation mode
     cond_true_errD = 0
-    if cfg.DISTIL.TRUE_LOSS and true_imgs is not None:
+    uncond_true_errD = 0
+    if cfg.DISTIL.FLAG and cfg.DISTIL.TRUE_LOSS and true_imgs is not None:
         true_features = netD(true_imgs)[-1]
         cond_true_logits = netD.COND_DNET(true_features, conditions)
         cond_true_errD = nn.BCELoss()(cond_true_logits, real_labels)
+    # ======== Distillation losses end ========================
 
     # loss
     #
@@ -169,11 +175,17 @@ def discriminator_loss(netD, real_imgs, fake_imgs, conditions,
         fake_logits = netD.UNCOND_DNET(fake_features)
         real_errD = nn.BCELoss()(real_logits, real_labels)
         fake_errD = nn.BCELoss()(fake_logits, fake_labels)
+        if cfg.DISTIL.FLAG and cfg.DISTIL.TRUE_LOSS and true_imgs is not None:
+            uncond_true_logits = netD.UNCOND_DNET(true_features)
+            uncond_true_errD = nn.BCELoss()(uncond_true_logits, real_labels)
         errD = ((real_errD + cond_real_errD) / 2. +
-                (fake_errD + cond_fake_errD + cond_wrong_errD) / 3.) + disc_dist_lambda * disc_losses + cfg.DISTIL.TRUE_LOSS_ALPHA * cond_true_errD
+                (fake_errD + cond_fake_errD + cond_wrong_errD) / 3.)
+        err_distil = disc_dist_lambda * disc_losses + cfg.DISTIL.TRUE_LOSS_ALPHA * (cond_true_errD + uncond_true_errD) / 2.
     else:
-        errD = cond_real_errD + (cond_fake_errD + cond_wrong_errD) / 2. + disc_dist_lambda * disc_losses + cfg.DISTIL.TRUE_LOSS_ALPHA * cond_true_errD
-    return errD
+        errD = cond_real_errD + (cond_fake_errD + cond_wrong_errD) / 2.
+        err_distil = disc_dist_lambda * disc_losses + cfg.DISTIL.TRUE_LOSS_ALPHA * cond_true_errD
+    total_errD = errD + err_distil
+    return total_errD, errD.detach().item(), err_distil.detach().item(), disc_losses.detach().item(), cond_true_errD.detach().item(), uncond_true_errD.detach().item()
 
 
 def generator_loss(netsD, image_encoder, fake_imgs, real_labels,

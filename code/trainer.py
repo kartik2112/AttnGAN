@@ -27,6 +27,7 @@ import sys
 import datetime
 import dateutil.tz
 from tqdm import tqdm
+import pprint
 
 # ################# Text to image task############################ #
 class condGANTrainer(object):
@@ -174,6 +175,20 @@ class condGANTrainer(object):
             torch.save(netD.state_dict(),
                 '%s/netD%d.pth' % (self.model_dir, i))
         print('Saved G/Ds models to %s' % (str(self.model_dir),))
+    
+    def save_config(self):
+        with open("%s/config_prettified.txt" % (self.model_dir,), 'w') as cfg_f:
+            pprint.pprint(cfg, cfg_f)
+    
+    def save_progress_results(self, epoch, gen_iterations, total_errD, errD, err_distil, disc_losses, cond_true_errD, uncond_true_errD, pix_dist_loss):
+        if not(os.path.exists("%s/training_progress_results.csv" % (self.model_dir,))):
+            prog_file = open("%s/training_progress_results.csv" % (self.model_dir,), "w")
+            prog_file.write("epoch,gen_iterations,total_errD,errD,err_distil,disc_losses,cond_true_errD,uncond_true_errD,pix_dist_loss\n")
+        else:
+            prog_file = open("%s/training_progress_results.csv" % (self.model_dir,), "a")
+        elems = [epoch, gen_iterations, total_errD, errD, err_distil, disc_losses, cond_true_errD, uncond_true_errD, pix_dist_loss]
+        prog_file.write(",".join([str(el) for el in elems]) + '\n')
+        prog_file.close()
 
     def set_requires_grad_value(self, models_list, brequires):
         for i in range(len(models_list)):
@@ -329,8 +344,10 @@ class condGANTrainer(object):
 
             if epoch % cfg.TRAIN.SNAPSHOT_INTERVAL == 0:  # and epoch != 0:
                 self.save_model(netG, avg_param_G, netsD, epoch)
+                self.save_config()
 
         self.save_model(netG, avg_param_G, netsD, self.max_epoch)
+        self.save_config()
 
     def distil(self):
         text_encoder, image_encoder, netG, netsD, start_epoch = self.build_models()
@@ -395,13 +412,13 @@ class condGANTrainer(object):
                 D_logs = ''
                 for i in range(len(netsD)):
                     netsD[i].zero_grad()
-                    errD = discriminator_loss(netsD[i], imgs[i], fake_imgs[i],
+                    total_errD, errD, err_distil, disc_losses, cond_true_errD, uncond_true_errD = discriminator_loss(netsD[i], imgs[i], fake_imgs[i],
                                               sent_emb, real_labels, fake_labels, disc_dist_lambda=disc_distil_lambda, true_imgs=real_imgs[i])
                     # backward and update parameters
-                    errD.backward()
+                    total_errD.backward()
                     optimizersD[i].step()
-                    errD_total += errD
-                    D_logs += 'errD%d: %.2f ' % (i, errD.detach().item())
+                    errD_total += total_errD
+                    D_logs += 'errD%d: %.2f ' % (i, total_errD.detach().item())
 
                 #######################################################
                 # (4) Update G network: maximize log(D(G(z)))
@@ -421,12 +438,12 @@ class condGANTrainer(object):
                 G_logs += 'kl_loss: %.2f ' % kl_loss.detach().item()
 
                 # Pixel-level distillation losses
+                pix_dist_loss = 0
                 if cfg.DISTIL.PXL_LOSS:
-                    dist_loss = 0
                     for i in range(len(fake_imgs)):
-                        dist_loss += pixel_distil_lambda * F.l1_loss(fake_imgs[i], imgs[i])
-                    errG_total += dist_loss
-                    G_logs += 'dist_loss: %.2f ' % dist_loss.detach().item()
+                        pix_dist_loss += pixel_distil_lambda * F.l1_loss(fake_imgs[i], imgs[i])
+                    errG_total += pix_dist_loss
+                    G_logs += 'dist_loss: %.2f ' % pix_dist_loss.detach().item()
                 
                 # backward and update parameters
                 errG_total.backward()
@@ -434,8 +451,9 @@ class condGANTrainer(object):
                 for p, avg_p in zip(netG.parameters(), avg_param_G):
                     avg_p.mul_(0.999).add_(0.001, p.data)
 
-                if gen_iterations % 100 == 0:
+                if gen_iterations % 50 == 0:
                     print(D_logs + '\n' + G_logs, flush=True)
+                    self.save_progress_results(epoch, gen_iterations, total_errD.detach().item(), errD, err_distil, disc_losses, cond_true_errD, uncond_true_errD, pix_dist_loss)
                 # save images
                 if gen_iterations % 1000 == 0:
                     backup_para = copy_G_params(netG)
@@ -462,8 +480,10 @@ class condGANTrainer(object):
 
             if epoch % cfg.TRAIN.SNAPSHOT_INTERVAL == 0:  # and epoch != 0:
                 self.save_model(netG, avg_param_G, netsD, epoch)
+                self.save_config()
 
         self.save_model(netG, avg_param_G, netsD, self.max_epoch)
+        self.save_config()
 
     def save_singleimages(self, images, filenames, save_dir,
                           split_dir, sentenceID=0):
