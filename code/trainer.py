@@ -453,7 +453,7 @@ class condGANTrainer(object):
 
                 if gen_iterations % 50 == 0:
                     print(D_logs + '\n' + G_logs, flush=True)
-                    self.save_progress_results(epoch, gen_iterations, total_errD.detach().item(), errD, err_distil, disc_losses, cond_true_errD, uncond_true_errD, pix_dist_loss.detach().item())
+                    self.save_progress_results(epoch, gen_iterations, total_errD.detach().item(), errD, err_distil, disc_losses, cond_true_errD, uncond_true_errD, pix_dist_loss.detach().item() if type(pix_dist_loss) != int else pix_dist_loss)
                 # save images
                 if gen_iterations % 1000 == 0:
                     backup_para = copy_G_params(netG)
