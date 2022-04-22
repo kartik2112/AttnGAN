@@ -7,5 +7,6 @@
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:p100:2
 #SBATCH --account=xiangren_818
+#SBATCH --priority=TOP
 
 python main.py --cfg cfg/coco_distil_attn2.yml --gpu 0
