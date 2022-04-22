@@ -134,10 +134,25 @@ def words_loss(img_features, words_emb, labels,
 
 # ##################Loss for G and Ds##############################
 def discriminator_loss(netD, real_imgs, fake_imgs, conditions,
-                       real_labels, fake_labels):
+                       real_labels, fake_labels, disc_dist_lambda=0, true_imgs=None):
     # Forward
-    real_features = netD(real_imgs)
-    fake_features = netD(fake_imgs.detach())
+    # real_features = netD(real_imgs)
+    # fake_features = netD(fake_imgs.detach())
+    all_real_features = netD(real_imgs)
+    all_fake_features = netD(fake_imgs.detach())
+    disc_losses = 0
+    if cfg.DISTIL.DISC_LOSS:
+        for i in range(len(all_real_features) - 1):
+            disc_losses += nn.L1Loss()(all_fake_features[i], all_real_features[i])
+    real_features = all_real_features[-1]
+    fake_features = all_fake_features[-1]
+
+    cond_true_errD = 0
+    if cfg.DISTIL.TRUE_LOSS and true_imgs is not None:
+        true_features = netD(true_imgs)[-1]
+        cond_true_logits = netD.COND_DNET(true_features, conditions)
+        cond_true_errD = nn.BCELoss()(cond_true_logits, real_labels)
+
     # loss
     #
     cond_real_logits = netD.COND_DNET(real_features, conditions)
@@ -155,9 +170,9 @@ def discriminator_loss(netD, real_imgs, fake_imgs, conditions,
         real_errD = nn.BCELoss()(real_logits, real_labels)
         fake_errD = nn.BCELoss()(fake_logits, fake_labels)
         errD = ((real_errD + cond_real_errD) / 2. +
-                (fake_errD + cond_fake_errD + cond_wrong_errD) / 3.)
+                (fake_errD + cond_fake_errD + cond_wrong_errD) / 3.) + disc_dist_lambda * disc_losses + cfg.DISTIL.TRUE_LOSS_ALPHA * cond_true_errD
     else:
-        errD = cond_real_errD + (cond_fake_errD + cond_wrong_errD) / 2.
+        errD = cond_real_errD + (cond_fake_errD + cond_wrong_errD) / 2. + disc_dist_lambda * disc_losses + cfg.DISTIL.TRUE_LOSS_ALPHA * cond_true_errD
     return errD
 
 
@@ -170,7 +185,7 @@ def generator_loss(netsD, image_encoder, fake_imgs, real_labels,
     # Forward
     errG_total = 0
     for i in range(numDs):
-        features = netsD[i](fake_imgs[i])
+        features = netsD[i](fake_imgs[i])[-1]
         cond_logits = netsD[i].COND_DNET(features, sent_emb)
         cond_errG = nn.BCELoss()(cond_logits, real_labels)
         if netsD[i].UNCOND_DNET is  not None:

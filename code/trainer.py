@@ -173,7 +173,7 @@ class condGANTrainer(object):
             netD = netsD[i]
             torch.save(netD.state_dict(),
                 '%s/netD%d.pth' % (self.model_dir, i))
-        print('Save G/Ds models.')
+        print('Saved G/Ds models to %s' % (str(self.model_dir),))
 
     def set_requires_grad_value(self, models_list, brequires):
         for i in range(len(models_list)):
@@ -347,7 +347,8 @@ class condGANTrainer(object):
 
         gen_iterations = 0
 
-        distil_lambda = cfg.DISTIL.START_DIST_LAMBDA
+        pixel_distil_lambda = cfg.DISTIL.PIX_DIST_LAMBDA_START
+        disc_distil_lambda = cfg.DISTIL.DISC_DIST_LAMBDA_START
         netG = nn.DataParallel(netG, device_ids=[0,1])
         image_encoder = nn.DataParallel(image_encoder, device_ids=[0,1])
         # gen_iterations = start_epoch * self.num_batches
@@ -366,6 +367,8 @@ class condGANTrainer(object):
                 data = data_iter.next()
                 imgs, captions, cap_lens, class_ids, keys = prepare_data(data[:-2])
                 real_imgs, noise_data = data[-2], data[-1]
+                for i in range(len(real_imgs)):
+                    real_imgs[i] = real_imgs[i].to(self.device)
 
                 hidden = text_encoder.init_hidden(batch_size)
                 # words_embs: batch_size x nef x seq_len
@@ -392,7 +395,7 @@ class condGANTrainer(object):
                 for i in range(len(netsD)):
                     netsD[i].zero_grad()
                     errD = discriminator_loss(netsD[i], imgs[i], fake_imgs[i],
-                                              sent_emb, real_labels, fake_labels)
+                                              sent_emb, real_labels, fake_labels, disc_dist_lambda=disc_distil_lambda, true_imgs=real_imgs[i])
                     # backward and update parameters
                     errD.backward()
                     optimizersD[i].step()
@@ -417,10 +420,10 @@ class condGANTrainer(object):
                 G_logs += 'kl_loss: %.2f ' % kl_loss.detach().item()
 
                 # Pixel-level distillation losses
-                if cfg.DISTIL.PXL_DIST:
+                if cfg.DISTIL.PXL_LOSS:
                     dist_loss = 0
                     for i in range(len(fake_imgs)):
-                        dist_loss += distil_lambda * F.l1_loss(fake_imgs[i], imgs[i])
+                        dist_loss += pixel_distil_lambda * F.l1_loss(fake_imgs[i], imgs[i])
                     errG_total += dist_loss
                     G_logs += 'dist_loss: %.2f ' % dist_loss.detach().item()
                 
@@ -431,7 +434,7 @@ class condGANTrainer(object):
                     avg_p.mul_(0.999).add_(0.001, p.data)
 
                 if gen_iterations % 100 == 0:
-                    print(D_logs + '\n' + G_logs)
+                    print(D_logs + '\n' + G_logs, flush=True)
                 # save images
                 if gen_iterations % 1000 == 0:
                     backup_para = copy_G_params(netG)
@@ -452,7 +455,8 @@ class condGANTrainer(object):
                   % (epoch, self.max_epoch, self.num_batches,
                      errD_total.detach().item(), errG_total.detach().item(),
                      end_t - start_t))
-            distil_lambda = max(0.00, distil_lambda-0.01)
+            pixel_distil_lambda = max(0.00, pixel_distil_lambda - cfg.DISTIL.PIX_DIST_LAMBDA_STEP)
+            disc_distil_lambda = max(0.00, disc_distil_lambda - cfg.DISTIL.DISC_DIST_LAMBDA_STEP)
 
             if epoch % cfg.TRAIN.SNAPSHOT_INTERVAL == 0:  # and epoch != 0:
                 self.save_model(netG, avg_param_G, netsD, epoch)

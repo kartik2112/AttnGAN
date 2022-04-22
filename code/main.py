@@ -19,7 +19,7 @@ import torchvision.transforms as transforms
 from PIL import Image
 import sys
 # sys.path.append("../../improved-gan")
-from miscc.inception_score_computer import get_inception_score
+# from miscc.inception_score_computer import get_inception_score
 # from inception_score_pytorch.inception_score import inception_score
 from tqdm import tqdm
 

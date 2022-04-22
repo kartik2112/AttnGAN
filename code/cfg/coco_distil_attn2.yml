@@ -11,18 +11,27 @@ TREE:
 
 DISTIL:
     FLAG: True
-    START_DIST_LAMBDA: 0.5
-    PXL_DIST: True
+    #
+    PXL_LOSS: True
+    PIX_DIST_LAMBDA_START: 1.0
+    PIX_DIST_LAMBDA_STEP: 0.2
+    #
+    DISC_LOSS: True
+    DISC_DIST_LAMBDA_START: 1.0
+    DISC_DIST_LAMBDA_STEP: 0.2
+    #
+    TRUE_LOSS: True
+    TRUE_LOSS_ALPHA: 0.5
 
 TRAIN:
     FLAG: True
     NET_G: ''  # '../models/coco_AttnGAN2.pth'
     B_NET_D: True
-    BATCH_SIZE: 32  # 32
+    BATCH_SIZE: 24  # 32
     MAX_EPOCH: 120
     SNAPSHOT_INTERVAL: 1
-    DISCRIMINATOR_LR: 0.002
-    GENERATOR_LR: 0.002
+    DISCRIMINATOR_LR: 0.0002
+    GENERATOR_LR: 0.0002
     #
     NET_E: '../DAMSMencoders/coco/text_encoder100.pth'
     SMOOTH:

@@ -532,6 +532,36 @@ def encode_image_by_16times(ndf):
     )
     return encode_img
 
+# Downsale the spatial size by a factor of 16
+class EncodeImageBy16TimesExpanded(nn.Module):
+    def __init__(self, ndf):
+        super(EncodeImageBy16TimesExpanded, self).__init__()
+        # --> state size. ndf x in_size/2 x in_size/2
+        self.conv1 = nn.Conv2d(3, ndf, 4, 2, 1, bias=False)
+        self.relu1 = nn.LeakyReLU(0.2, inplace=True)
+
+        # --> state size 2ndf x x in_size/4 x in_size/4
+        self.conv2 = nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False)
+        self.bnorm2 = nn.BatchNorm2d(ndf * 2)
+        self.relu2 = nn.LeakyReLU(0.2, inplace=True)
+
+        # --> state size 4ndf x in_size/8 x in_size/8
+        self.conv3 = nn.Conv2d(ndf * 2, ndf * 4, 4, 2, 1, bias=False)
+        self.bnorm3 = nn.BatchNorm2d(ndf * 4)
+        self.relu3 = nn.LeakyReLU(0.2, inplace=True)
+
+        # --> state size 8ndf x in_size/16 x in_size/16
+        self.conv4 = nn.Conv2d(ndf * 4, ndf * 8, 4, 2, 1, bias=False)
+        self.bnorm4 = nn.BatchNorm2d(ndf * 8)
+        self.relu4 = nn.LeakyReLU(0.2, inplace=True)
+        
+    def forward(self, inp):
+        block1 = self.relu1(self.conv1(inp))
+        block2 = self.relu2(self.bnorm2(self.conv2(block1)))
+        block3 = self.relu3(self.bnorm3(self.conv3(block2)))
+        block4 = self.relu4(self.bnorm4(self.conv4(block3)))
+        return block1, block2, block3, block4
+
 
 class D_GET_LOGITS(nn.Module):
     def __init__(self, ndf, nef, bcondition=False):
@@ -568,7 +598,7 @@ class D_NET64(nn.Module):
         super(D_NET64, self).__init__()
         ndf = cfg.GAN.DF_DIM
         nef = cfg.TEXT.EMBEDDING_DIM
-        self.img_code_s16 = encode_image_by_16times(ndf)
+        self.img_code_s16 = EncodeImageBy16TimesExpanded(ndf)
         if b_jcu:
             self.UNCOND_DNET = D_GET_LOGITS(ndf, nef, bcondition=False)
         else:
@@ -576,8 +606,8 @@ class D_NET64(nn.Module):
         self.COND_DNET = D_GET_LOGITS(ndf, nef, bcondition=True)
 
     def forward(self, x_var):
-        x_code4 = self.img_code_s16(x_var)  # 4 x 4 x 8df
-        return x_code4
+        x_code4_1, x_code4_2, x_code4_3, x_code4 = self.img_code_s16(x_var)  # 4 x 4 x 8df
+        return x_code4_1, x_code4_2, x_code4_3, x_code4, x_code4
 
 
 # For 128 x 128 images
@@ -586,7 +616,7 @@ class D_NET128(nn.Module):
         super(D_NET128, self).__init__()
         ndf = cfg.GAN.DF_DIM
         nef = cfg.TEXT.EMBEDDING_DIM
-        self.img_code_s16 = encode_image_by_16times(ndf)
+        self.img_code_s16 = EncodeImageBy16TimesExpanded(ndf)
         self.img_code_s32 = downBlock(ndf * 8, ndf * 16)
         self.img_code_s32_1 = Block3x3_leakRelu(ndf * 16, ndf * 8)
         #
@@ -597,10 +627,10 @@ class D_NET128(nn.Module):
         self.COND_DNET = D_GET_LOGITS(ndf, nef, bcondition=True)
 
     def forward(self, x_var):
-        x_code8 = self.img_code_s16(x_var)   # 8 x 8 x 8df
+        x_code8_1, x_code8_2, x_code8_3, x_code8 = self.img_code_s16(x_var)   # 8 x 8 x 8df
         x_code4 = self.img_code_s32(x_code8)   # 4 x 4 x 16df
         x_code4 = self.img_code_s32_1(x_code4)  # 4 x 4 x 8df
-        return x_code4
+        return x_code8_1, x_code8_2, x_code8_3, x_code8, x_code4
 
 
 # For 256 x 256 images
@@ -609,7 +639,7 @@ class D_NET256(nn.Module):
         super(D_NET256, self).__init__()
         ndf = cfg.GAN.DF_DIM
         nef = cfg.TEXT.EMBEDDING_DIM
-        self.img_code_s16 = encode_image_by_16times(ndf)
+        self.img_code_s16 = EncodeImageBy16TimesExpanded(ndf)
         self.img_code_s32 = downBlock(ndf * 8, ndf * 16)
         self.img_code_s64 = downBlock(ndf * 16, ndf * 32)
         self.img_code_s64_1 = Block3x3_leakRelu(ndf * 32, ndf * 16)
@@ -621,9 +651,9 @@ class D_NET256(nn.Module):
         self.COND_DNET = D_GET_LOGITS(ndf, nef, bcondition=True)
 
     def forward(self, x_var):
-        x_code16 = self.img_code_s16(x_var)
+        x_code16_1, x_code16_2, x_code16_3, x_code16 = self.img_code_s16(x_var)
         x_code8 = self.img_code_s32(x_code16)
         x_code4 = self.img_code_s64(x_code8)
         x_code4 = self.img_code_s64_1(x_code4)
         x_code4 = self.img_code_s64_2(x_code4)
-        return x_code4
+        return x_code16_1, x_code16_2, x_code16_3, x_code16, x_code4
