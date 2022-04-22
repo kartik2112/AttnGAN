@@ -8,4 +8,4 @@
 #SBATCH --gres=gpu:p100:2
 #SBATCH --account=xiangren_818
 
-python main.py --cfg cfg/eval_coco.yml --gpu 0
+python main.py --cfg cfg/eval_coco_distil.yml --gpu 0

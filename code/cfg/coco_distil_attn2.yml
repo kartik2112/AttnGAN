@@ -12,6 +12,7 @@ TREE:
 DISTIL:
     FLAG: True
     START_DIST_LAMBDA: 0.5
+    PXL_DIST: True
 
 TRAIN:
     FLAG: True
@@ -19,9 +20,9 @@ TRAIN:
     B_NET_D: True
     BATCH_SIZE: 32  # 32
     MAX_EPOCH: 120
-    SNAPSHOT_INTERVAL: 5
-    DISCRIMINATOR_LR: 0.0002
-    GENERATOR_LR: 0.0002
+    SNAPSHOT_INTERVAL: 1
+    DISCRIMINATOR_LR: 0.002
+    GENERATOR_LR: 0.002
     #
     NET_E: '../DAMSMencoders/coco/text_encoder100.pth'
     SMOOTH:

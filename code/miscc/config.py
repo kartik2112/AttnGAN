@@ -30,6 +30,8 @@ __C.TREE.BASE_SIZE = 64
 __C.DISTIL = edict()
 __C.DISTIL.FLAG = False
 __C.DISTIL.START_DIST_LAMBDA = 0.5
+__C.DISTIL.PXL_DIST = True
+
 
 # Training options
 __C.TRAIN = edict()

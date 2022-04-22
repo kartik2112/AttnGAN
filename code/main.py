@@ -19,8 +19,8 @@ import torchvision.transforms as transforms
 from PIL import Image
 import sys
 # sys.path.append("../../improved-gan")
-# from miscc.inception_score_computer import get_inception_score
-from inception_score_pytorch.inception_score import inception_score
+from miscc.inception_score_computer import get_inception_score
+# from inception_score_pytorch.inception_score import inception_score
 from tqdm import tqdm
 
 dir_path = (os.path.abspath(os.path.join(os.path.realpath(__file__), './.')))
@@ -172,31 +172,39 @@ if __name__ == "__main__":
 
             algo.gen_dataset()
         else:
-            dataset = TextDataset(cfg.DATA_DIR, split_dir,
-                            base_size=cfg.TREE.BASE_SIZE,
-                            transform=image_transform)
-            assert dataset
-            dataloader = torch.utils.data.DataLoader(
-                dataset, batch_size=cfg.TRAIN.BATCH_SIZE,
-                drop_last=True, shuffle=bshuffle, num_workers=int(cfg.WORKERS))
-
-            # Define models and go to train/evaluate
-            algo = trainer(output_dir, dataloader, dataset.n_words, dataset.ixtoword)
+            
             '''generate images from pre-extracted embeddings'''
             if cfg.B_VALIDATION:
-                # algo.sampling(split_dir)  # generate images for the whole valid dataset
-                # images1 = []
-                # dir1 = '../models/coco_AttnGAN2/valid/single/'
-                # cnt = 200
-                # for imgname in tqdm(os.listdir(dir1)):
-                #     img = Image.open(dir1 + imgname).convert('RGB')
-                #     images1.append(np.array(img))
-                #     cnt -= 1
-                #     if cnt == 0:
-                #         break
-                # print("Inception Scores:",get_inception_score(images1))
-                print("Inception Scores:",inception_score('../models/coco_AttnGAN2/valid/single/', cuda=True, batch_size=1000, num_workers=int(cfg.WORKERS)))
+                dataset = TextDataset_Generator(cfg.DATA_DIR, 'val',
+                          base_size=cfg.TREE.BASE_SIZE,
+                          transform=image_transform)
+                assert dataset
+                dataloader = torch.utils.data.DataLoader(
+                    dataset, batch_size=cfg.TRAIN.BATCH_SIZE,
+                    drop_last=True, shuffle=bshuffle, num_workers=int(cfg.WORKERS))
+
+                # Define models and go to train/evaluate
+                algo = trainer(output_dir, dataloader, dataset.n_words, dataset.ixtoword)
+                
+                algo.sampling(split_dir)  # generate images for the whole valid dataset
+                images1 = []
+                dir1 =cfg.TRAIN.NET_G[:cfg.TRAIN.NET_G.rfind('.pth')] + '/valid/single/'
+                for imgname in tqdm(os.listdir(dir1)):
+                    img = Image.open(dir1 + imgname).convert('RGB')
+                    images1.append(np.array(img))
+                print("Inception Scores:",get_inception_score(images1))
+                # print("Inception Scores:",inception_score('../models/coco_AttnGAN2/valid/single/', cuda=True, batch_size=1000, num_workers=int(cfg.WORKERS)))
             else:
+                dataset = TextDataset(cfg.DATA_DIR, split_dir,
+                                base_size=cfg.TREE.BASE_SIZE,
+                                transform=image_transform)
+                assert dataset
+                dataloader = torch.utils.data.DataLoader(
+                    dataset, batch_size=cfg.TRAIN.BATCH_SIZE,
+                    drop_last=True, shuffle=bshuffle, num_workers=int(cfg.WORKERS))
+
+                # Define models and go to train/evaluate
+                algo = trainer(output_dir, dataloader, dataset.n_words, dataset.ixtoword)
                 gen_example(dataset.wordtoix, algo)  # generate images for customized captions
     end_t = time.time()
     print('Total time for task:', end_t - start_t)

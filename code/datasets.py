@@ -346,14 +346,14 @@ class TextDataset_Generator(TextDataset):
                  base_size=64,
                  transform=None, target_transform=None, incl_caption_texts=True):
         super().__init__(data_dir, split, base_size, transform, target_transform, incl_caption_texts)
-        self.filenames = self.load_filenames(data_dir, "minicoco_train_fnames")
-        if os.path.isfile("%s/minicoco_train_captions.pickle" % (data_dir, )):
-            self.caption_texts, self.captions = pickle.load(open("%s/minicoco_train_captions.pickle" % (data_dir, ), 'rb'))
+        self.filenames = self.load_filenames(data_dir, "minicoco_%s_fnames" % (split,))
+        if os.path.isfile("%s/minicoco_%s_captions.pickle" % (data_dir, split)):
+            self.caption_texts, self.captions = pickle.load(open("%s/minicoco_%s_captions.pickle" % (data_dir, split), 'rb'))
             
         else:
             caption_text_tokens, self.caption_texts = self.load_captions(data_dir, self.filenames)
             self.captions = self.encode_captions(caption_text_tokens)
-            pickle.dump([self.caption_texts, self.captions], open("%s/minicoco_train_captions.pickle" % (data_dir, ), 'wb'))
+            pickle.dump([self.caption_texts, self.captions], open("%s/minicoco_%s_captions.pickle" % (data_dir, split), 'wb'))
         
         split_dir = os.path.join(data_dir, split)
         self.class_id = self.load_class_id(split_dir, len(self.filenames))

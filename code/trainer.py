@@ -414,12 +414,16 @@ class condGANTrainer(object):
                                    words_embs, sent_emb, match_labels, cap_lens, class_ids)
                 kl_loss = KL_loss(mu, logvar)
                 errG_total += kl_loss
-                dist_loss = 0
-                for i in range(len(fake_imgs)):
-                    dist_loss += distil_lambda * F.l1_loss(fake_imgs[i], imgs[i])
-                errG_total += dist_loss
                 G_logs += 'kl_loss: %.2f ' % kl_loss.detach().item()
-                G_logs += 'dist_loss: %.2f ' % dist_loss.detach().item()
+
+                # Pixel-level distillation losses
+                if cfg.DISTIL.PXL_DIST:
+                    dist_loss = 0
+                    for i in range(len(fake_imgs)):
+                        dist_loss += distil_lambda * F.l1_loss(fake_imgs[i], imgs[i])
+                    errG_total += dist_loss
+                    G_logs += 'dist_loss: %.2f ' % dist_loss.detach().item()
+                
                 # backward and update parameters
                 errG_total.backward()
                 optimizerG.step()
@@ -486,6 +490,7 @@ class condGANTrainer(object):
             else:
                 netG = G_NET()
             netG.apply(weights_init)
+            netG = nn.DataParallel(netG)
             netG.to(self.device)
             netG.eval()
             #
@@ -524,7 +529,7 @@ class condGANTrainer(object):
                     # if step > 50:
                     #     break
 
-                    imgs, captions, cap_lens, class_ids, keys = prepare_data(data)
+                    imgs, captions, cap_lens, class_ids, keys = prepare_data(data[:-2])
 
                     hidden = text_encoder.init_hidden(batch_size)
                     # words_embs: batch_size x nef x seq_len
