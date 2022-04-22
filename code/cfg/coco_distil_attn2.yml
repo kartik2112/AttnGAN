@@ -1,7 +1,8 @@
 CONFIG_NAME: 'glu-gan2-distil'
 
 DATASET_NAME: 'coco'
-DATA_DIR: '../gen_datasets/coco_attn2_2022_04_18_20_31_44'
+DATA_DIR: '../data/OPGAN'
+FILE_PREFIX: 'OPGAN_COCO'
 GPU_ID: 0
 WORKERS: 4
 
@@ -25,7 +26,7 @@ DISTIL:
 
 TRAIN:
     FLAG: True
-    NET_G: ''  # '../models/coco_AttnGAN2.pth'
+    NET_G: ''  # '../models/coco_OPGAN1.pth'
     B_NET_D: True
     BATCH_SIZE: 24  # 32
     MAX_EPOCH: 120
