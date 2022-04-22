@@ -185,7 +185,7 @@ def discriminator_loss(netD, real_imgs, fake_imgs, conditions,
         errD = cond_real_errD + (cond_fake_errD + cond_wrong_errD) / 2.
         err_distil = disc_dist_lambda * disc_losses + cfg.DISTIL.TRUE_LOSS_ALPHA * cond_true_errD
     total_errD = errD + err_distil
-    return total_errD, errD.detach().item(), err_distil.detach().item() if type(err_distil) != int else err_distil, \
+    return total_errD, errD.detach().item(), err_distil.detach().item() if type(err_distil) != float else err_distil, \
             disc_losses.detach().item() if type(disc_losses) != int else disc_losses, \
             cond_true_errD.detach().item() if type(cond_true_errD) != int else cond_true_errD, \
             uncond_true_errD.detach().item() if type(uncond_true_errD) != int else uncond_true_errD
