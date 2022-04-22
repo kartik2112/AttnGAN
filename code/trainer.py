@@ -357,6 +357,7 @@ class condGANTrainer(object):
 
             data_iter = iter(self.data_loader)
             step = 0
+            pbar = tqdm(total=self.num_batches, leave=False)
             while step < self.num_batches:
                 # reset requires_grad to be trainable for all Ds
                 # self.set_requires_grad_value(netsD, True)
@@ -449,6 +450,7 @@ class condGANTrainer(object):
                     #                       captions, cap_lens,
                     #                       epoch, name='current')
             end_t = time.time()
+            pbar.update(1)
 
             print('''[%d/%d][%d]
                   Loss_D: %.2f Loss_G: %.2f Time: %.2fs'''
