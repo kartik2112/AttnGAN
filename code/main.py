@@ -131,6 +131,15 @@ if __name__ == "__main__":
         transforms.RandomCrop(imsize),
         transforms.RandomHorizontalFlip()])
 
+    if cfg.TRAIN.NET_G != '' and not cfg.TRAIN.NET_G.endswith('.pth') and (cfg.B_VALIDATION or cfg.DISTIL.FLAG):
+        shortlisted_model_fnames = []
+        for fname in os.listdir(cfg.TRAIN.NET_G):
+            if os.path.isfile(cfg.TRAIN.NET_G + fname) and fname.startswith('netG_epoch'):
+                shortlisted_model_fnames.append(int(fname[fname.rfind("_")+1:fname.rfind(".")]))
+        shortlisted_model_fnames.sort()
+        cfg.TRAIN.NET_G += "netG_epoch_" + str(shortlisted_model_fnames[-1]) + ".pth"
+        print("Updated NET_G path to %s" % (cfg.TRAIN.NET_G, ))
+
     start_t = time.time()
     if cfg.DISTIL.FLAG:
         dataset = DistilTextDataset(cfg.DATA_DIR, split_dir,
@@ -152,6 +161,7 @@ if __name__ == "__main__":
         dataloader = torch.utils.data.DataLoader(
             dataset, batch_size=cfg.TRAIN.BATCH_SIZE,
             drop_last=True, shuffle=bshuffle, num_workers=int(cfg.WORKERS))
+        
 
         # Define models and go to train/evaluate
         algo = trainer(output_dir, dataloader, dataset.n_words, dataset.ixtoword)
