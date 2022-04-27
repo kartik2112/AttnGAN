@@ -25,7 +25,7 @@ DISTIL:
 
 TRAIN:
     FLAG: True
-    NET_G: ''  # '../models/coco_AttnGAN2.pth'
+    NET_G: '../output/coco_glu-gan2-distil_2022_04_22_14_11_03/Model/'  # '../models/coco_AttnGAN2.pth'
     B_NET_D: True
     BATCH_SIZE: 24  # 32
     MAX_EPOCH: 120

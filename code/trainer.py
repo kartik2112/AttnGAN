@@ -471,9 +471,7 @@ class condGANTrainer(object):
                     #                       words_embs, mask, image_encoder,
                     #                       captions, cap_lens,
                     #                       epoch, name='current')
-                pbar.update(1)
-                if step == 10:
-                    break
+                    pbar.update(1000)
             end_t = time.time()
 
             print('''[%d/%d][%d]
