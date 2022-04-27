@@ -3,15 +3,15 @@ pip install -r requirements.txt
 
 # Download coco.zip containing DAMSMencoders
 gdown 1zIrXCE9F6yfbEJIbNP5-YrEe2pZcPSGJ -O DAMSMencoders
-unzip DAMSMencoders/coco.zip -O DAMSMencoders/
+unzip DAMSMencoders/coco.zip -d DAMSMencoders/
 
 # Download DAMSMencoders
 gdown 1rSnbIGNDGZeHlsUlLdahj0RJ9oo6lgH9 -O data/
-unzip data/coco.zip -O data
+unzip data/coco.zip -d data/
 
 # Download images
 gdown 1II0ijRjdPpSl0Nnz2ncktigGDujQ1nb_ -O data/coco/
-unzip ./data/coco/images.zip -o data/coco/
+unzip data/coco/images.zip -d data/coco/
 
 # Download minicoco related files
 gdown 10pyh2K8ybPdp0xBNTQ-4uSFSlBpVZQuL -O data/coco/
