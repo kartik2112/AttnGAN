@@ -314,3 +314,12 @@ def mkdir_p(path):
             pass
         else:
             raise
+
+def print_network(model, name):
+    """Print out the network information."""
+    num_params = 0
+    for p in model.parameters():
+        num_params += p.numel()
+    print(name)
+    # print(model)
+    print("The number of parameters: {:.1f} M, ({})".format(num_params/10**6, num_params))
