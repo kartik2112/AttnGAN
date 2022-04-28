@@ -143,7 +143,7 @@ if __name__ == "__main__":
     start_t = time.time()
     if cfg.DISTIL.FLAG:
         dataset = DistilTextDataset(cfg.DATA_DIR, split_dir,
-                          base_size=cfg.TREE.BASE_SIZE,
+                          base_size=cfg.TREE.BASE_SIZE, file_prefix=cfg.FILE_PREFIX,
                           transform=image_transform)
         assert dataset
         dataloader = torch.utils.data.DataLoader(
