@@ -14,6 +14,7 @@ from miscc.config import cfg
 from miscc.utils import mkdir_p
 from miscc.utils import build_super_images, build_super_images2
 from miscc.utils import weights_init, load_params, copy_G_params
+from miscc.utils import print_network
 from model import G_DCGAN, G_NET
 from datasets import prepare_data
 from model import RNN_ENCODER, CNN_ENCODER
@@ -132,6 +133,14 @@ class condGANTrainer(object):
                         torch.load(Dname, map_location=lambda storage, loc: storage)
                     netsD[i].load_state_dict(state_dict)
         # ########################################################### #
+
+        print("Model Architecture:")
+        print_network(text_encoder, 'text_encoder')
+        print_network(image_encoder, 'image_encoder')
+        print_network(netG, 'netG')
+        for i, netD in enumerate(netsD):
+            print_network(netD, 'netD'+str(i + 1))
+
         if cfg.CUDA:
             text_encoder = text_encoder.to(self.device)
             image_encoder = image_encoder.to(self.device)
