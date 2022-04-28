@@ -93,7 +93,7 @@ class condGANTrainer(object):
             netsD = [D_NET(b_jcu=False)]
         else:
             from model import D_NET64, D_NET128, D_NET256
-            netG = G_NET()
+            netG = nn.DataParallel(G_NET(), device_ids=[0,1])
             if cfg.TREE.BRANCH_NUM > 0:
                 netsD.append(D_NET64())
             if cfg.TREE.BRANCH_NUM > 1:
@@ -114,6 +114,10 @@ class condGANTrainer(object):
                 torch.load(cfg.TRAIN.NET_G, map_location=lambda storage, loc: storage)
             netG.load_state_dict(state_dict)
             print('Load G from: ', cfg.TRAIN.NET_G)
+            output_dir = cfg.TRAIN.NET_G[:cfg.TRAIN.NET_G.rfind('/', 0, cfg.TRAIN.NET_G.rfind('/'))]
+            self.model_dir = os.path.join(output_dir, 'Model')
+            self.image_dir = os.path.join(output_dir, 'Image')
+            print('Set model and image output directories to %s' % (output_dir))
             istart = cfg.TRAIN.NET_G.rfind('_') + 1
             iend = cfg.TRAIN.NET_G.rfind('.')
             epoch = cfg.TRAIN.NET_G[istart:iend]
@@ -364,9 +368,9 @@ class condGANTrainer(object):
 
         gen_iterations = 0
 
-        pixel_distil_lambda = cfg.DISTIL.PIX_DIST_LAMBDA_START
-        disc_distil_lambda = cfg.DISTIL.DISC_DIST_LAMBDA_START
-        netG = nn.DataParallel(netG, device_ids=[0,1])
+        pixel_distil_lambda = max(0.00, cfg.DISTIL.PIX_DIST_LAMBDA_START - start_epoch * cfg.DISTIL.PIX_DIST_LAMBDA_STEP)
+        disc_distil_lambda = max(0.00, cfg.DISTIL.DISC_DIST_LAMBDA_START - start_epoch * cfg.DISTIL.DISC_DIST_LAMBDA_STEP)
+        # netG = nn.DataParallel(netG, device_ids=[0,1])
         image_encoder = nn.DataParallel(image_encoder, device_ids=[0,1])
         # gen_iterations = start_epoch * self.num_batches
         for epoch in tqdm(range(start_epoch, self.max_epoch)):
@@ -467,8 +471,8 @@ class condGANTrainer(object):
                     #                       words_embs, mask, image_encoder,
                     #                       captions, cap_lens,
                     #                       epoch, name='current')
+                    pbar.update(1000)
             end_t = time.time()
-            pbar.update(1)
 
             print('''[%d/%d][%d]
                   Loss_D: %.2f Loss_G: %.2f Time: %.2fs'''
