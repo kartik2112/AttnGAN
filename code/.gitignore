@@ -1,2 +1,5 @@
 *.pyc
 !.gitignore
+AttnGAN/code/SOA/yolov3.weights
+AttnGAN/code/SOA/data/generated_images/*
+AttnGAN/code/SOA/__temp_ignore.py
