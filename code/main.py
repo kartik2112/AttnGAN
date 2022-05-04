@@ -184,7 +184,7 @@ if __name__ == "__main__":
             assert dataset
             dataloader = torch.utils.data.DataLoader(
                 dataset, batch_size=cfg.TRAIN.BATCH_SIZE,
-                drop_last=True, shuffle=False, num_workers=int(cfg.WORKERS))
+                drop_last=False, shuffle=False, num_workers=int(cfg.WORKERS))
 
             # Define models and go to train/evaluate
             algo = trainer(output_dir, dataloader, dataset.n_words, dataset.ixtoword, dataset.__len__())

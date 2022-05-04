@@ -396,8 +396,8 @@ class condGANTrainer(object):
                 # (1) Prepare training data and Compute text embeddings
                 ######################################################
                 data = data_iter.next()
-                imgs, captions, cap_lens, class_ids, keys = prepare_data(data[:-2])
-                real_imgs, noise_data = data[-2], data[-1]
+                imgs, captions, cap_lens, class_ids, keys, real_imgs, noise_data = prepare_data(data, 'real_imgs')
+                # real_imgs, noise_data = data[-2], data[-1]
                 for i in range(len(real_imgs)):
                     real_imgs[i] = real_imgs[i].to(self.device)
 
@@ -667,8 +667,8 @@ class condGANTrainer(object):
                     if step % 100 == 0:
                         print('step: ', step)
 
-                    imgs, captions, cap_lens, class_ids, keys = prepare_data(data[:-2])
-                    caption_texts, caption_ids = data[-2], data[-1]
+                    imgs, captions, cap_lens, class_ids, keys, caption_texts, caption_ids = prepare_data(data,'caps')
+                    # caption_texts, caption_ids = data[-2], data[-1]
 
                     hidden = text_encoder.init_hidden(batch_size)
                     # words_embs: batch_size x nef x seq_len

@@ -27,8 +27,12 @@ else:
     import pickle
 
 
-def prepare_data(data):
-    imgs, captions, captions_lens, class_ids, keys = data
+def prepare_data(data, added_data=''):
+    if added_data == '':
+        imgs, captions, captions_lens, class_ids, keys = data
+    else:
+        imgs, captions, captions_lens, class_ids, keys, extra_data_1, extra_data_2 = data
+
 
     # sort data by the length in a decreasing order
     sorted_cap_lens, sorted_cap_indices = \
@@ -47,15 +51,25 @@ def prepare_data(data):
     # sent_indices = sent_indices[sorted_cap_indices]
     keys = [keys[i] for i in sorted_cap_indices.numpy()]
     # print('keys', type(keys), keys[-1])  # list
+    if added_data == 'caps':
+        extra_data_1 = extra_data_1[sorted_cap_indices]
+        extra_data_2 = extra_data_2[sorted_cap_indices]
+    else added_data == 'real_imgs':
+        for i in range(len(extra_data_1)):
+            extra_data_1[i] = extra_data_1[i][sorted_cap_indices]
+        extra_data_2 = extra_data_2[sorted_cap_indices]
     if cfg.CUDA:
         captions = Variable(captions).cuda()
         sorted_cap_lens = Variable(sorted_cap_lens).cuda()
     else:
         captions = Variable(captions)
         sorted_cap_lens = Variable(sorted_cap_lens)
-
-    return [real_imgs, captions, sorted_cap_lens,
+    if added_data == '':
+        return [real_imgs, captions, sorted_cap_lens,
             class_ids, keys]
+    else:
+        return [real_imgs, captions, sorted_cap_lens,
+            class_ids, keys, extra_data_1, extra_data_2]
 
 
 def get_imgs(img_path, imsize, bbox=None,
