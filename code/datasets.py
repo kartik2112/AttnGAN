@@ -52,9 +52,9 @@ def prepare_data(data, added_data=''):
     keys = [keys[i] for i in sorted_cap_indices.numpy()]
     # print('keys', type(keys), keys[-1])  # list
     if added_data == 'caps':
-        extra_data_1 = extra_data_1[sorted_cap_indices]
+        extra_data_1 = np.array(extra_data_1)[sorted_cap_indices]
         extra_data_2 = extra_data_2[sorted_cap_indices]
-    else added_data == 'real_imgs':
+    elif added_data == 'real_imgs':
         for i in range(len(extra_data_1)):
             extra_data_1[i] = extra_data_1[i][sorted_cap_indices]
         extra_data_2 = extra_data_2[sorted_cap_indices]
