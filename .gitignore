@@ -7,3 +7,6 @@ code/miscc/*.pyc
 slurm-*
 launch.json
 gen_datasets/
+code/SOA/yolov3.weights
+code/SOA/data/generated_images/*
+code/SOA/__temp_ignore.py
