@@ -5,16 +5,18 @@ DATA_DIR: '../data/coco'
 GPU_ID: 0
 WORKERS: 4
 
-B_VALIDATION: True
+B_VALIDATION: False
+GEN_IMAGES: False
+FAKE_COUNT: 5
 TREE:
     BRANCH_NUM: 3
 
 
 TRAIN:
     FLAG: False
-    NET_G: '../output/opgan/netG_epoch_3.pth'
+    NET_G: '../output/coco_glu-gan2-distil_2022_04_22_14_26_28/Model/netG_epoch_5.pth'
     B_NET_D: False
-    BATCH_SIZE: 32
+    BATCH_SIZE: 40
     NET_E: '../DAMSMencoders/coco/text_encoder100.pth'
 
 
