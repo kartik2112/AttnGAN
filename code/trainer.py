@@ -425,13 +425,15 @@ class condGANTrainer(object):
                 D_logs = ''
                 for i in range(len(netsD)):
                     netsD[i].zero_grad()
-                    total_errD, errD, err_distil, disc_losses, cond_true_errD, uncond_true_errD = discriminator_loss(netsD[i], imgs[i], fake_imgs[i],
+                    total_errD, disc_loss_torch, errD, err_distil, disc_losses, cond_true_errD, uncond_true_errD = discriminator_loss(netsD[i], imgs[i], fake_imgs[i],
                                               sent_emb, real_labels, fake_labels, disc_dist_lambda=disc_distil_lambda, true_imgs=real_imgs[i])
                     # backward and update parameters
                     total_errD.backward()
                     optimizersD[i].step()
                     errD_total += total_errD
                     D_logs += 'errD%d: %.2f ' % (i, total_errD.detach().item())
+                    for param in netsD[i].parameters():
+                        param.requires_grad = False
 
                 #######################################################
                 # (4) Update G network: maximize log(D(G(z)))
@@ -448,6 +450,7 @@ class condGANTrainer(object):
                                    words_embs, sent_emb, match_labels, cap_lens, class_ids)
                 kl_loss = KL_loss(mu, logvar)
                 errG_total += kl_loss
+
                 G_logs += 'kl_loss: %.2f ' % kl_loss.detach().item()
 
                 # Pixel-level distillation losses
@@ -458,9 +461,17 @@ class condGANTrainer(object):
                     errG_total += pix_dist_loss
                     G_logs += 'dist_loss: %.2f ' % pix_dist_loss.detach().item()
                 
+                # Discriminator activation losses
+                errG_total += disc_loss_torch
+
                 # backward and update parameters
                 errG_total.backward()
                 optimizerG.step()
+
+                for i in range(len(netsD)):
+                    for param in netsD[i].parameters():
+                        param.requires_grad = True
+
                 for p, avg_p in zip(netG.parameters(), avg_param_G):
                     avg_p.mul_(0.999).add_(0.001, p.data)
 
@@ -727,10 +738,11 @@ class condGANTrainer(object):
             model_dir = cfg.TRAIN.NET_G
             state_dict = \
                 torch.load(model_dir, map_location=lambda storage, loc: storage)
-            netG.load_state_dict(state_dict)
-            print('Load G from: ', model_dir)
+            netG = nn.DataParallel(netG)
             netG.to(self.device)
             netG.eval()
+            print('Load G from: ', model_dir)
+            netG.load_state_dict(state_dict)
             for key in data_dic:
                 save_dir = '%s/%s' % (s_tmp, key)
                 print(save_dir)

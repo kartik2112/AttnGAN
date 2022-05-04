@@ -2,10 +2,10 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=64GB
+#SBATCH --mem=16GB
 #SBATCH --time=2:00:00
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:p100:2
 #SBATCH --account=xiangren_818
 
-python main.py --cfg cfg/eval_coco_distil.yml --gpu 0
+python main.py --cfg cfg/distil_exps/eval_distil_3.yml --gpu 0

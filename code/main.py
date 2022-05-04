@@ -142,6 +142,13 @@ if __name__ == "__main__":
 
     start_t = time.time()
     if cfg.DISTIL.FLAG:
+        if cfg.DISTIL.PXL_LOSS is False:
+            cfg.DISTIL.PIX_DIST_LAMBDA_START = 0
+        if cfg.DISTIL.DISC_LOSS is False:
+            cfg.DISTIL.DISC_DIST_LAMBDA_START = 0
+        if cfg.DISTIL.TRUE_LOSS is False:
+            cfg.DISTIL.TRUE_LOSS_ALPHA = 0
+
         dataset = DistilTextDataset(cfg.DATA_DIR, split_dir,
                           base_size=cfg.TREE.BASE_SIZE,
                           transform=image_transform)

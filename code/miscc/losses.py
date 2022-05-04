@@ -179,13 +179,13 @@ def discriminator_loss(netD, real_imgs, fake_imgs, conditions,
             uncond_true_logits = netD.UNCOND_DNET(true_features)
             uncond_true_errD = nn.BCELoss()(uncond_true_logits, real_labels)
         errD = ((real_errD + cond_real_errD) / 2. +
-                (fake_errD + cond_fake_errD + cond_wrong_errD) / 3.)
-        err_distil = disc_dist_lambda * disc_losses + cfg.DISTIL.TRUE_LOSS_ALPHA * (cond_true_errD + uncond_true_errD) / 2.
+                (1 + cfg.DISTIL.TRUE_LOSS_ALPHA) * (fake_errD + cond_fake_errD + cond_wrong_errD) / 3.)
+        err_distil = cfg.DISTIL.TRUE_LOSS_ALPHA * (cond_true_errD + uncond_true_errD) / 2.
     else:
-        errD = cond_real_errD + (cond_fake_errD + cond_wrong_errD) / 2.
-        err_distil = disc_dist_lambda * disc_losses + cfg.DISTIL.TRUE_LOSS_ALPHA * cond_true_errD
+        errD = cond_real_errD + (1 + cfg.DISTIL.TRUE_LOSS_ALPHA) * (cond_fake_errD + cond_wrong_errD) / 2.
+        err_distil = cfg.DISTIL.TRUE_LOSS_ALPHA * cond_true_errD
     total_errD = errD + err_distil
-    return total_errD, errD.detach().item(), err_distil.detach().item() if type(err_distil) != float else err_distil, \
+    return total_errD, disc_dist_lambda * disc_losses, errD.detach().item(), err_distil.detach().item() if type(err_distil) != float else err_distil, \
             disc_losses.detach().item() if type(disc_losses) != int else disc_losses, \
             cond_true_errD.detach().item() if type(cond_true_errD) != int else cond_true_errD, \
             uncond_true_errD.detach().item() if type(uncond_true_errD) != int else uncond_true_errD
