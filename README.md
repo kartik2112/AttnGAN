@@ -1,19 +1,13 @@
-# AttnGAN
+# TKD
 
-Pytorch implementation for reproducing AttnGAN results in the paper [AttnGAN: Fine-Grained Text to Image Generation
-with Attentional Generative Adversarial Networks](http://openaccess.thecvf.com/content_cvpr_2018/papers/Xu_AttnGAN_Fine-Grained_Text_CVPR_2018_paper.pdf) by Tao Xu, Pengchuan Zhang, Qiuyuan Huang, Han Zhang, Zhe Gan, Xiaolei Huang, Xiaodong He. (This work was performed when Tao was an intern with Microsoft Research). 
+Repository extended from [AttnGAN](https://github.com/taoxugit/AttnGAN) with distillation losses and functionalities.
+
 
 <img src="framework.png" width="900px" height="350px"/>
 
+# Setup
 
-### Dependencies
-python 3.6
-
-Pytorch
-
-In addition, please add the project folder to PYTHONPATH and `pip install -r requirements.txt`
-
-
+In a new conda environment, execute `sh setup.sh`
 
 **Data**
 
