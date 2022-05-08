@@ -9,6 +9,10 @@ Repository extended from [AttnGAN](https://github.com/taoxugit/AttnGAN) with dis
 
 In a new conda environment, execute `sh setup.sh`
 
+# Generating Dataset from Teacher model
+
+
+
 **Data**
 
 1. Download our preprocessed metadata for [birds](https://drive.google.com/open?id=1O_LtUP9sch09QH3s_EBAgLEctBQ5JBSJ) [coco](https://drive.google.com/open?id=1rSnbIGNDGZeHlsUlLdahj0RJ9oo6lgH9) and save them to `data/`
