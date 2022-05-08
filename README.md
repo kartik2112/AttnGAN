@@ -11,6 +11,14 @@ In a new conda environment, execute `sh setup.sh`
 
 # Generating Dataset from Teacher model
 
+We use 5 Teacher models:
+1. AttnGAN
+2. OP-GAN
+3. CP-GAN
+4. XMC-GAN
+5. Lafite
+
+![](https://github.com/kartik2112/Tmage/blob/master/Image.gif)
 
 
 **Data**
