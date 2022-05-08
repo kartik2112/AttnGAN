@@ -18,7 +18,8 @@ We use 5 Teacher models:
 4. XMC-GAN
 5. Lafite
 
-![](https://github.com/kartik2112/Tmage/blob/master/Image.gif)
+# Work flow
+![](https://github.com/kartik2112/Tmage/blob/master/Training.gif)
 
 
 **Data**
